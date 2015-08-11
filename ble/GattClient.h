@@ -273,6 +273,11 @@ public:
         onHVXCallback = callback;
     }
 
+    static GattClient &getInstance(){
+        static GattClient gattSingleton;
+        return gattSingleton;
+    }
+
 protected:
     GattClient() {
         /* empty */
