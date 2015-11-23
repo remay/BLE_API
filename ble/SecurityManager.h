@@ -81,6 +81,7 @@ public:
     typedef void (*SecuritySetupCompletedCallback_t)(Gap::Handle_t, SecurityCompletionStatus_t status);
     typedef void (*LinkSecuredCallback_t)(Gap::Handle_t handle, SecurityMode_t securityMode);
     typedef void (*PasskeyDisplayCallback_t)(Gap::Handle_t handle, const Passkey_t passkey);
+    typedef void (*PasskeyRequestCallback_t)(Gap::Handle_t handle, Passkey_t passkey);
 
     /*
      * The following functions are meant to be overridden in the platform-specific sub-class.
@@ -172,6 +173,11 @@ public:
      */
     virtual void onPasskeyDisplay(PasskeyDisplayCallback_t callback) {passkeyDisplayCallback = callback;}
 
+    /**
+     * To set the callback for when the passkey needs to be entered on a central/peripheral with KEYBOARD capability.
+     */
+    virtual void onPasskeyRequest(PasskeyRequestCallback_t callback) {passkeyRequestCallback = callback;}
+
     /* Entry points for the underlying stack to report events back to the user. */
 public:
     void processSecuritySetupInitiatedEvent(Gap::Handle_t handle, bool allowBonding, bool requireMITM, SecurityIOCapabilities_t iocaps) {
@@ -204,13 +210,20 @@ public:
         }
     }
 
+    void processPasskeyRequestEvent(Gap::Handle_t handle, Passkey_t passkey) {
+        if (passkeyRequestCallback) {
+            passkeyRequestCallback(handle, passkey);
+        }
+    }
+
 protected:
     SecurityManager() :
         securitySetupInitiatedCallback(),
         securitySetupCompletedCallback(),
         linkSecuredCallback(),
         securityContextStoredCallback(),
-        passkeyDisplayCallback() {
+        passkeyDisplayCallback(),
+        passkeyRequestCallback() {
         /* empty */
     }
 
@@ -220,6 +233,7 @@ protected:
     LinkSecuredCallback_t            linkSecuredCallback;
     HandleSpecificEvent_t            securityContextStoredCallback;
     PasskeyDisplayCallback_t         passkeyDisplayCallback;
+    PasskeyRequestCallback_t         passkeyRequestCallback;
 };
 
 #endif /*__SECURITY_MANAGER_H__*/
