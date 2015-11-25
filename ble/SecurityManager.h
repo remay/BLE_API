@@ -132,6 +132,20 @@ public:
     }
 
     /**
+     * Initiate the pairing/bonding process on a connection
+     *
+     * @param[in]  connectionHandle   Handle to identify the connection.
+     *
+     * @return BLE_ERROR_NONE Or appropriate error code indicating reason for failure.
+     */
+    virtual ble_error_t secureConnection(Gap::Handle_t connectionHandle) {
+        /* avoid compiler warnings about unused variables */
+        (void)connectionHandle;
+
+        return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if security is supported. */
+    }
+
+    /**
      * Delete all peer device context and all related bonding information from
      * the database within the security manager.
      *
