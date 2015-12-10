@@ -185,6 +185,27 @@ public:
     }
 
     /**
+     * Perform an explicit BLE notification of a given attribute.
+     *
+     * @param[in] attributeHandle
+     *              Handle for the value attribute of the Characteristic.
+     * @param[in] value
+     *              A pointer to a buffer holding the new value
+     * @param[in] size
+     *              Size of the new value (in bytes).
+     *
+     * @return BLE_ERROR_NONE if we have successfully set the value of the attribute.
+     */
+    virtual ble_error_t notify(GattAttribute::Handle_t attributeHandle, const uint8_t *value, uint16_t size)
+    {
+        (void)attributeHandle;
+        (void)value;
+        (void)size;
+
+        return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
+    }
+
+    /**
      * Determine the updates-enabled status (notification or indication) for the current connection from a characteristic's CCCD.
      *
      * @param       characteristic
