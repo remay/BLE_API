@@ -325,11 +325,6 @@ public:
         return onHVXCallbackChain;
     }
 
-    static GattClient &getInstance(){
-        static GattClient gattSingleton;
-        return gattSingleton;
-    }
-
 protected:
     GattClient() {
         /* Empty */
