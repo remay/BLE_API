@@ -21,12 +21,10 @@
 #include "GapAdvertisingParams.h"
 #include "GapScanningParams.h"
 #include "GapEvents.h"
-#include "CallChain.h"
+#include "CallChainOfFunctionPointersWithContext.h"
 #include "FunctionPointerWithContext.h"
 
-using namespace mbed;
-
-/* Forward declarations for classes which will only be used for pointers or references in the following. */
+/* Forward declarations for classes that will only be used for pointers or references in the following. */
 class GapAdvertisingParams;
 class GapScanningParams;
 class GapAdvertisingData;
@@ -39,11 +37,11 @@ public:
         ADDR_TYPE_RANDOM_PRIVATE_RESOLVABLE,
         ADDR_TYPE_RANDOM_PRIVATE_NON_RESOLVABLE
     };
-    typedef enum AddressType_t addr_type_t; /* @Note: deprecated. Use AddressType_t instead. */
+    typedef enum AddressType_t addr_type_t; /* @Note: Deprecated. Use AddressType_t instead. */
 
     static const unsigned ADDR_LEN = 6;
     typedef uint8_t Address_t[ADDR_LEN]; /* 48-bit address, LSB format. */
-    typedef Address_t address_t;         /* @Note: deprecated. Use Address_t instead. */
+    typedef Address_t address_t;         /* @Note: Deprecated. Use Address_t instead. */
 
     enum TimeoutSource_t {
         TIMEOUT_SRC_ADVERTISING      = 0x00, /**< Advertising timeout. */
@@ -54,24 +52,24 @@ public:
 
     /**
      * Enumeration for disconnection reasons. The values for these reasons are
-     * derived from Nordic's implementation; but the reasons are meant to be
-     * independent of the transport. If you are returned a reason which is not
-     * covered by this enumeration, then please refer to the underlying
+     * derived from Nordic's implementation, but the reasons are meant to be
+     * independent of the transport. If you are returned a reason that is not
+     * covered by this enumeration, please refer to the underlying
      * transport library.
      */
     enum DisconnectionReason_t {
         CONNECTION_TIMEOUT                          = 0x08,
         REMOTE_USER_TERMINATED_CONNECTION           = 0x13,
-        REMOTE_DEV_TERMINATION_DUE_TO_LOW_RESOURCES = 0x14,  /**< Remote Device Terminated Connection due to low resources.*/
-        REMOTE_DEV_TERMINATION_DUE_TO_POWER_OFF     = 0x15,  /**< Remote Device Terminated Connection due to power off. */
+        REMOTE_DEV_TERMINATION_DUE_TO_LOW_RESOURCES = 0x14,  /**< Remote device terminated connection due to low resources.*/
+        REMOTE_DEV_TERMINATION_DUE_TO_POWER_OFF     = 0x15,  /**< Remote device terminated connection due to power off. */
         LOCAL_HOST_TERMINATED_CONNECTION            = 0x16,
         CONN_INTERVAL_UNACCEPTABLE                  = 0x3B,
     };
 
-    /* Describes the current state of the device (more than one bit can be set) */
+    /* Describes the current state of the device (more than one bit can be set). */
     struct GapState_t {
-        unsigned advertising : 1; /**< peripheral is currently advertising */
-        unsigned connected   : 1; /**< peripheral is connected to a central */
+        unsigned advertising : 1; /**< Peripheral is currently advertising. */
+        unsigned connected   : 1; /**< Peripheral is connected to a central. */
     };
 
     typedef uint16_t Handle_t; /* Type for connection handle. */
@@ -126,21 +124,31 @@ public:
         }
     };
 
+    struct DisconnectionCallbackParams_t {
+        Handle_t              handle;
+        DisconnectionReason_t reason;
+
+        DisconnectionCallbackParams_t(Handle_t              handleIn,
+                                      DisconnectionReason_t reasonIn) :
+            handle(handleIn),
+            reason(reasonIn)
+        {}
+    };
+
     static const uint16_t UNIT_1_25_MS  = 1250; /**< Number of microseconds in 1.25 milliseconds. */
-    static const uint16_t UNIT_0_625_MS = 625;  /**< Number of microseconds in 0.625 milliseconds. */
     static uint16_t MSEC_TO_GAP_DURATION_UNITS(uint32_t durationInMillis) {
         return (durationInMillis * 1000) / UNIT_1_25_MS;
     }
-    static uint16_t MSEC_TO_ADVERTISEMENT_DURATION_UNITS(uint32_t durationInMillis) {
-        return (durationInMillis * 1000) / UNIT_0_625_MS;
-    }
-    static uint16_t ADVERTISEMENT_DURATION_UNITS_TO_MS(uint16_t gapUnits) {
-        return (gapUnits * UNIT_0_625_MS) / 1000;
-    }
 
-    typedef void (*TimeoutEventCallback_t)(TimeoutSource_t source);
-    typedef void (*ConnectionEventCallback_t)(const ConnectionCallbackParams_t *params);
-    typedef void (*DisconnectionEventCallback_t)(Handle_t, DisconnectionReason_t);
+    typedef FunctionPointerWithContext<TimeoutSource_t> TimeoutEventCallback_t;
+    typedef CallChainOfFunctionPointersWithContext<TimeoutSource_t> TimeoutEventCallbackChain_t;
+
+    typedef FunctionPointerWithContext<const ConnectionCallbackParams_t *> ConnectionEventCallback_t;
+    typedef CallChainOfFunctionPointersWithContext<const ConnectionCallbackParams_t *> ConnectionEventCallbackChain_t;
+
+    typedef FunctionPointerWithContext<const DisconnectionCallbackParams_t*> DisconnectionEventCallback_t;
+    typedef CallChainOfFunctionPointersWithContext<const DisconnectionCallbackParams_t*> DisconnectionEventCallbackChain_t;
+
     typedef FunctionPointerWithContext<bool> RadioNotificationEventCallback_t;
 
     /*
@@ -149,7 +157,7 @@ public:
 public:
     /**
      * Set the BTLE MAC address and type. Please note that the address format is
-     * LSB (least significant byte first). Please refer to Address_t.
+     * least significant byte first (LSB). Please refer to Address_t.
      *
      * @return BLE_ERROR_NONE on success.
      */
@@ -167,7 +175,7 @@ public:
      * @return BLE_ERROR_NONE on success.
      */
     virtual ble_error_t getAddress(AddressType_t *typeP, Address_t address) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)typeP;
         (void)address;
 
@@ -175,14 +183,16 @@ public:
     }
 
     /**
-     * @return Minimum Advertising interval in milliseconds.
+     * @return Minimum Advertising interval in milliseconds for connectable
+     *      undirected and connectable directed event types.
      */
     virtual uint16_t getMinAdvertisingInterval(void) const {
         return 0; /* Requesting action from porter(s): override this API if this capability is supported. */
     }
 
     /**
-     * @return Minimum Advertising interval in milliseconds for non-connectible mode.
+     * @return Minimum Advertising interval in milliseconds for scannable
+     *      undirected and non-connectable undirected event types.
      */
     virtual uint16_t getMinNonConnectableAdvertisingInterval(void) const {
         return 0; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -220,14 +230,14 @@ public:
      * @param scanParams
      *          Paramters to be used while scanning for the peer.
      * @return  BLE_ERROR_NONE if connection establishment procedure is started
-     *     successfully. The connectionCallback (if set) will be invoked upon
+     *     successfully. The connectionCallChain (if set) will be invoked upon
      *     a connection event.
      */
     virtual ble_error_t connect(const Address_t           peerAddr,
                                 Gap::AddressType_t        peerAddrType,
                                 const ConnectionParams_t *connectionParams,
                                 const GapScanningParams  *scanParams) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)peerAddr;
         (void)peerAddrType;
         (void)connectionParams;
@@ -242,7 +252,7 @@ public:
      * disconnectionCallback.
      *
      * @param  reason
-     *           The reason for disconnection to be sent back to the peer.
+     *           The reason for disconnection; to be sent back to the peer.
      */
     virtual ble_error_t disconnect(Handle_t connectionHandle, DisconnectionReason_t reason) {
         /* avoid compiler warnings about unused variables */
@@ -258,15 +268,15 @@ public:
      * disconnectionCallback.
      *
      * @param  reason
-     *           The reason for disconnection to be sent back to the peer.
+     *           The reason for disconnection; to be sent back to the peer.
      *
-     * @note: this version of disconnect() doesn't take a connection handle. It
-     * will work reliably only for stacks which are limited to a single
+     * @note: This version of disconnect() doesn't take a connection handle. It
+     * works reliably only for stacks that are limited to a single
      * connection. This API should be considered *deprecated* in favour of the
-     * altertive which takes a connection handle. It will be dropped in the future.
+     * alternative, which takes a connection handle. It will be dropped in the future.
      */
     virtual ble_error_t disconnect(DisconnectionReason_t reason) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)reason;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -285,7 +295,7 @@ public:
      * the given structure pointed to by params.
      */
     virtual ble_error_t getPreferredConnectionParams(ConnectionParams_t *params) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)params;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -300,18 +310,20 @@ public:
      *               The structure containing the desired parameters.
      */
     virtual ble_error_t setPreferredConnectionParams(const ConnectionParams_t *params) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)params;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
     }
 
     /**
-     * Update connection parameters while in the peripheral role.
-     * @details In the peripheral role, this will send the corresponding L2CAP request to the connected peer and wait for
-     *          the central to perform the procedure.
+     * Update connection parameters.
+     * In the central role this will initiate a Link Layer connection parameter update procedure.
+     * In the peripheral role, this will send the corresponding L2CAP request and wait for
+     * the central to perform the procedure.
+     *
      * @param[in] handle
-     *              Connection Handle
+     *              Connection Handle.
      * @param[in] params
      *              Pointer to desired connection parameters. If NULL is provided on a peripheral role,
      *              the parameters in the PPCP characteristic of the GAP service will be used instead.
@@ -330,7 +342,7 @@ public:
      *              The new value for the device-name. This is a UTF-8 encoded, <b>NULL-terminated</b> string.
      */
     virtual ble_error_t setDeviceName(const uint8_t *deviceName) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)deviceName;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -368,7 +380,7 @@ public:
      *              The new value for the device-appearance.
      */
     virtual ble_error_t setAppearance(GapAdvertisingData::Appearance appearance) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)appearance;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -380,7 +392,7 @@ public:
      *               The new value for the device-appearance.
      */
     virtual ble_error_t getAppearance(GapAdvertisingData::Appearance *appearanceP) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)appearanceP;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -391,7 +403,7 @@ public:
      * @param[in] txPower Radio transmit power in dBm.
      */
     virtual ble_error_t setTxPower(int8_t txPower) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)txPower;
 
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
@@ -406,7 +418,7 @@ public:
      *                 Out parameter to receive the array's size.
      */
     virtual void getPermittedTxPowerValues(const int8_t **valueArrayPP, size_t *countP) {
-        /* avoid compiler warnings about unused variables */
+        /* Avoid compiler warnings about unused variables. */
         (void)valueArrayPP;
         (void)countP;
 
@@ -416,6 +428,7 @@ public:
 protected:
     /* Override the following in the underlying adaptation layer to provide the functionality of scanning. */
     virtual ble_error_t startRadioScan(const GapScanningParams &scanningParams) {
+        (void)scanningParams;
         return BLE_ERROR_NOT_IMPLEMENTED; /* Requesting action from porter(s): override this API if this capability is supported. */
     }
 
@@ -424,8 +437,8 @@ protected:
      */
 public:
     /**
-     * Returns the current GAP state of the device using a bitmask which
-     * describes whether the device is advertising and/or connected.
+     * Returns the current GAP state of the device using a bitmask that
+     * describes whether the device is advertising or connected.
      */
     GapState_t getState(void) const {
         return state;
@@ -450,19 +463,14 @@ public:
      *              to ADV_CONNECTABLE_DIRECTED.
      *
      * @note: Decreasing this value will allow central devices to detect a
-     * peripheral faster at the expense of more power being used by the radio
+     * peripheral faster, at the expense of more power being used by the radio
      * due to the higher data transmit rate.
-     *
-     * @note: This API is now *deprecated* and will be dropped in the future.
-     * You should use the parallel API from Gap directly. A former call to
-     * ble.setAdvertisingInterval(...) should now be achieved using
-     * ble.gap().setAdvertisingInterval(...).
      *
      * @Note: [WARNING] This API previously used 0.625ms as the unit for its
      * 'interval' argument. That required an explicit conversion from
      * milliseconds using Gap::MSEC_TO_GAP_DURATION_UNITS(). This conversion is
      * no longer required as the new units are milliseconds. Any application
-     * code depending on the old semantics would need to be updated accordingly.
+     * code depending on the old semantics needs to be updated accordingly.
      */
     void setAdvertisingInterval(uint16_t interval) {
         if (interval == 0) {
@@ -470,7 +478,7 @@ public:
         } else if (interval < getMinAdvertisingInterval()) {
             interval = getMinAdvertisingInterval();
         }
-        _advParams.setInterval(MSEC_TO_ADVERTISEMENT_DURATION_UNITS(interval));
+        _advParams.setInterval(interval);
     }
 
     /**
@@ -486,17 +494,14 @@ public:
      * Start advertising.
      */
     ble_error_t startAdvertising(void) {
-        setAdvertisingData(); /* update the underlying stack */
+        setAdvertisingData(); /* Update the underlying stack. */
         return startAdvertising(_advParams);
     }
 
     /**
      * Reset any advertising payload prepared from prior calls to
      * accumulateAdvertisingPayload(). This automatically propagates the re-
-     * initialized adv payload to the underlying stack.
-     *
-     * Note: This should be followed by a call to setAdvertisingPayload() or
-     * startAdvertising() before the update takes effect.
+     * initialized advertising payload to the underlying stack.
      */
     void clearAdvertisingPayload(void) {
         _advPayload.clear();
@@ -506,7 +511,7 @@ public:
     /**
      * Accumulate an AD structure in the advertising payload. Please note that
      * the payload is limited to 31 bytes. The SCAN_RESPONSE message may be used
-     * as an additional 31 bytes if the advertising payload proves to be too
+     * as an additional 31 bytes if the advertising payload is too
      * small.
      *
      * @param[in] flags
@@ -526,7 +531,7 @@ public:
     /**
      * Accumulate an AD structure in the advertising payload. Please note that
      * the payload is limited to 31 bytes. The SCAN_RESPONSE message may be used
-     * as an additional 31 bytes if the advertising payload proves to be too
+     * as an additional 31 bytes if the advertising payload is too
      * small.
      *
      * @param  app
@@ -546,12 +551,11 @@ public:
     /**
      * Accumulate an AD structure in the advertising payload. Please note that
      * the payload is limited to 31 bytes. The SCAN_RESPONSE message may be used
-     * as an additional 31 bytes if the advertising payload proves to be too
+     * as an additional 31 bytes if the advertising payload is too
      * small.
      *
-     * @param  app
-     *         The max transmit power to be used by the controller. This is
-     *         only a hint.
+     * @param  power
+     *         The max transmit power to be used by the controller (in dBm).
      */
     ble_error_t accumulateAdvertisingPayloadTxPower(int8_t power) {
         ble_error_t rc;
@@ -566,11 +570,11 @@ public:
      * Accumulate a variable length byte-stream as an AD structure in the
      * advertising payload. Please note that the payload is limited to 31 bytes.
      * The SCAN_RESPONSE message may be used as an additional 31 bytes if the
-     * advertising payload proves to be too small.
+     * advertising payload is too small.
      *
-     * @param  type The type which describes the variable length data.
-     * @param  data data bytes.
-     * @param  len  length of data.
+     * @param  type The type describing the variable length data.
+     * @param  data Data bytes.
+     * @param  len  Length of data.
      */
     ble_error_t accumulateAdvertisingPayload(GapAdvertisingData::DataType type, const uint8_t *data, uint8_t len) {
         if (type == GapAdvertisingData::COMPLETE_LOCAL_NAME) {
@@ -586,7 +590,34 @@ public:
     }
 
     /**
-     * Setup a particular, user-constructed advertisement payload for the
+     * Update a particular ADV field in the advertising payload (based on
+     * matching type and length). Note: the length of the new data must be the
+     * same as the old one.
+     *
+     * @param[in] type  The ADV type field describing the variable length data.
+     * @param[in] data  Data bytes.
+     * @param[in] len   Length of data.
+     *
+     * @note: If advertisements are enabled, then the update will take effect immediately.
+     *
+     * @return BLE_ERROR_NONE if the advertisement payload was updated based on
+     *         a <type, len> match; otherwise, an appropriate error.
+     */
+    ble_error_t updateAdvertisingPayload(GapAdvertisingData::DataType type, const uint8_t *data, uint8_t len) {
+        if (type == GapAdvertisingData::COMPLETE_LOCAL_NAME) {
+            setDeviceName(data);
+        }
+
+        ble_error_t rc;
+        if ((rc = _advPayload.updateData(type, data, len)) != BLE_ERROR_NONE) {
+            return rc;
+        }
+
+        return setAdvertisingData();
+    }
+
+    /**
+     * Set up a particular, user-constructed advertisement payload for the
      * underlying stack. It would be uncommon for this API to be used directly;
      * there are other APIs to build an advertisement payload (see above).
      */
@@ -607,9 +638,9 @@ public:
      * Accumulate a variable length byte-stream as an AD structure in the
      * scanResponse payload.
      *
-     * @param[in] type The type which describes the variable length data.
-     * @param[in] data data bytes.
-     * @param[in] len  length of data.
+     * @param[in] type The type describing the variable length data.
+     * @param[in] data Data bytes.
+     * @param[in] len  Length of data.
      */
     ble_error_t accumulateScanResponse(GapAdvertisingData::DataType type, const uint8_t *data, uint8_t len) {
         ble_error_t rc;
@@ -633,13 +664,13 @@ public:
     }
 
     /**
-     * Setup parameters for GAP scanning--i.e. observer mode.
+     * Set up parameters for GAP scanning (observer mode).
      * @param[in] interval
      *              Scan interval (in milliseconds) [valid values lie between 2.5ms and 10.24s].
      * @param[in] window
      *              Scan Window (in milliseconds) [valid values lie between 2.5ms and 10.24s].
      * @param[in] timeout
-     *              Scan timeout (in seconds) between 0x0001 and 0xFFFF, 0x0000 disables timeout.
+     *              Scan timeout (in seconds) between 0x0001 and 0xFFFF; 0x0000 disables the timeout.
      * @param[in] activeScanning
      *              Set to True if active-scanning is required. This is used to fetch the
      *              scan response from a peer if possible.
@@ -672,7 +703,7 @@ public:
     }
 
     /**
-     * Setup the scanInterval parameter for GAP scanning--i.e. observer mode.
+     * Set up the scanInterval parameter for GAP scanning (observer mode).
      * @param[in] interval
      *              Scan interval (in milliseconds) [valid values lie between 2.5ms and 10.24s].
      *
@@ -691,7 +722,7 @@ public:
     }
 
     /**
-     * Setup the scanWindow parameter for GAP scanning--i.e. observer mode.
+     * Set up the scanWindow parameter for GAP scanning (observer mode).
      * @param[in] window
      *              Scan Window (in milliseconds) [valid values lie between 2.5ms and 10.24s].
      *
@@ -704,34 +735,70 @@ public:
      *
      * Once the scanning parameters have been configured, scanning can be
      * enabled by using startScan().
+     *
+     * If scanning is already active, the updated value of scanWindow will be
+     * propagated to the underlying BLE stack.
      */
     ble_error_t setScanWindow(uint16_t window) {
-        return _scanningParams.setWindow(window);
+        ble_error_t rc;
+        if ((rc = _scanningParams.setWindow(window)) != BLE_ERROR_NONE) {
+            return rc;
+        }
+
+        /* If scanning is already active, propagate the new setting to the stack. */
+        if (scanningActive) {
+            return startRadioScan(_scanningParams);
+        }
+
+        return BLE_ERROR_NONE;
     }
 
     /**
-     * Setup parameters for GAP scanning--i.e. observer mode.
+     * Set up parameters for GAP scanning (observer mode).
      * @param[in] timeout
-     *              Scan timeout (in seconds) between 0x0001 and 0xFFFF, 0x0000 disables timeout.
+     *              Scan timeout (in seconds) between 0x0001 and 0xFFFF; 0x0000 disables the timeout.
      *
      * Once the scanning parameters have been configured, scanning can be
      * enabled by using startScan().
+     *
+     * If scanning is already active, the updated value of scanTimeout will be
+     * propagated to the underlying BLE stack.
      */
     ble_error_t setScanTimeout(uint16_t timeout) {
-        return _scanningParams.setTimeout(timeout);
+        ble_error_t rc;
+        if ((rc = _scanningParams.setTimeout(timeout)) != BLE_ERROR_NONE) {
+            return rc;
+        }
+
+        /* If scanning is already active, propagate the new settings to the stack. */
+        if (scanningActive) {
+            return startRadioScan(_scanningParams);
+        }
+
+        return BLE_ERROR_NONE;
     }
 
     /**
-     * Setup parameters for GAP scanning--i.e. observer mode.
+     * Set up parameters for GAP scanning (observer mode).
      * @param[in] activeScanning
      *              Set to True if active-scanning is required. This is used to fetch the
      *              scan response from a peer if possible.
      *
      * Once the scanning parameters have been configured, scanning can be
      * enabled by using startScan().
+     *
+     * If scanning is already in progress, then active-scanning will be enabled
+     * for the underlying BLE stack.
      */
-    void setActiveScanning(bool activeScanning) {
+    ble_error_t setActiveScanning(bool activeScanning) {
         _scanningParams.setActiveScanning(activeScanning);
+
+        /* If scanning is already active, propagate the new settings to the stack. */
+        if (scanningActive) {
+            return startRadioScan(_scanningParams);
+        }
+
+        return BLE_ERROR_NONE;
     }
 
     /**
@@ -739,7 +806,7 @@ public:
      * effect.
      *
      * @param[in] callback
-     *              The application specific callback to be invoked upon
+     *              The application-specific callback to be invoked upon
      *              receiving every advertisement report. This can be passed in
      *              as NULL, in which case scanning may not be enabled at all.
      */
@@ -747,6 +814,7 @@ public:
         ble_error_t err = BLE_ERROR_NONE;
         if (callback) {
             if ((err = startRadioScan(_scanningParams)) == BLE_ERROR_NONE) {
+                scanningActive = true;
                 onAdvertisementReport.attach(callback);
             }
         }
@@ -762,6 +830,7 @@ public:
         ble_error_t err = BLE_ERROR_NONE;
         if (object && callbackMember) {
             if ((err = startRadioScan(_scanningParams)) == BLE_ERROR_NONE) {
+                scanningActive = true;
                 onAdvertisementReport.attach(object, callbackMember);
             }
         }
@@ -771,17 +840,17 @@ public:
 
     /**
      * Initialize radio-notification events to be generated from the stack.
-     * This API doesn't need to be called directly;
+     * This API doesn't need to be called directly.
      *
      * Radio Notification is a feature that enables ACTIVE and INACTIVE
      * (nACTIVE) signals from the stack that notify the application when the
      * radio is in use.
      *
-     * The ACTIVE signal is sent before the Radio Event starts. The nACTIVE
-     * signal is sent at the end of the Radio Event. These signals can be used
+     * The ACTIVE signal is sent before the radio event starts. The nACTIVE
+     * signal is sent at the end of the radio event. These signals can be used
      * by the application programmer to synchronize application logic with radio
      * activity. For example, the ACTIVE signal can be used to shut off external
-     * devices to manage peak current drawn during periods when the radio is on,
+     * devices, to manage peak current drawn during periods when the radio is on,
      * or to trigger sensor data collection for transmission in the Radio Event.
      *
      * @return BLE_ERROR_NONE on successful initialization, otherwise an error code.
@@ -796,8 +865,8 @@ private:
     }
 
 private:
-    virtual ble_error_t setAdvertisingData(const GapAdvertisingData &, const GapAdvertisingData &) = 0;
-    virtual ble_error_t startAdvertising(const GapAdvertisingParams &)                             = 0;
+    virtual ble_error_t setAdvertisingData(const GapAdvertisingData &advData, const GapAdvertisingData &scanResponse) = 0;
+    virtual ble_error_t startAdvertising(const GapAdvertisingParams &) = 0;
 
 public:
     /**
@@ -811,7 +880,7 @@ public:
     }
 
     /**
-     * Setup a particular, user-constructed set of advertisement parameters for
+     * Set up a particular, user-constructed set of advertisement parameters for
      * the underlying stack. It would be uncommon for this API to be used
      * directly; there are other APIs to tweak advertisement parameters
      * individually.
@@ -823,32 +892,61 @@ public:
     /* Event callback handlers. */
 public:
     /**
-     * Setup a callback for timeout events. Refer to TimeoutSource_t for
+     * Set up a callback for timeout events. Refer to TimeoutSource_t for
      * possible event types.
+     * @note It is possible to unregister callbacks using onTimeout().detach(callback)
      */
-    void onTimeout(TimeoutEventCallback_t callback) {timeoutCallback = callback;}
+    void onTimeout(TimeoutEventCallback_t callback) {
+        timeoutCallbackChain.add(callback);
+    }
 
     /**
-     * Setup a callback for connection events. Refer to ConnectionEventCallback_t.
+     * @brief provide access to the callchain of timeout event callbacks
+     * It is possible to register callbacks using onTimeout().add(callback);
+     * It is possible to unregister callbacks using onTimeout().detach(callback)
+     * @return The timeout event callbacks chain
      */
-    void onConnection(ConnectionEventCallback_t callback) {connectionCallback = callback;}
+    TimeoutEventCallbackChain_t& onTimeout() {
+        return timeoutCallbackChain;
+    }
 
     /**
-     * Set the application callback for disconnection events.
-     * @param callback
-     *        Pointer to the unique callback.
+     * Append to a chain of callbacks to be invoked upon GAP connection.
+     * @note It is possible to unregister callbacks using onConnection().detach(callback)
      */
-    void onDisconnection(DisconnectionEventCallback_t callback) {disconnectionCallback = callback;}
+    void onConnection(ConnectionEventCallback_t callback) {connectionCallChain.add(callback);}
 
-    /**
-     * Append to a chain of callbacks to be invoked upon disconnection; these
-     * callbacks receive no context and are therefore different from the
-     * disconnectionCallback callback.
-     * @param callback
-     *        function pointer to be invoked upon disconnection; receives no context.
-     */
     template<typename T>
-    void addToDisconnectionCallChain(T *tptr, void (T::*mptr)(void)) {disconnectionCallChain.add(tptr, mptr);}
+    void onConnection(T *tptr, void (T::*mptr)(const ConnectionCallbackParams_t*)) {connectionCallChain.add(tptr, mptr);}
+
+    /**
+     * @brief provide access to the callchain of connection event callbacks
+     * It is possible to register callbacks using onConnection().add(callback);
+     * It is possible to unregister callbacks using onConnection().detach(callback)
+     * @return The connection event callbacks chain
+     */
+    ConnectionEventCallbackChain_t& onConnection() {
+        return connectionCallChain;
+    }
+
+    /**
+     * Append to a chain of callbacks to be invoked upon GAP disconnection.
+     * @note It is possible to unregister callbacks using onDisconnection().detach(callback)
+     */
+    void onDisconnection(DisconnectionEventCallback_t callback) {disconnectionCallChain.add(callback);}
+
+    template<typename T>
+    void onDisconnection(T *tptr, void (T::*mptr)(const DisconnectionCallbackParams_t*)) {disconnectionCallChain.add(tptr, mptr);}
+
+    /**
+     * @brief provide access to the callchain of disconnection event callbacks
+     * It is possible to register callbacks using onDisconnection().add(callback);
+     * It is possible to unregister callbacks using onDisconnection().detach(callback)
+     * @return The disconnection event callbacks chain
+     */
+    DisconnectionEventCallbackChain_t& onDisconnection() {
+        return disconnectionCallChain;
+    }
 
     /**
      * Set the application callback for radio-notification events.
@@ -857,18 +955,18 @@ public:
      * (nACTIVE) signals from the stack that notify the application when the
      * radio is in use.
      *
-     * The ACTIVE signal is sent before the Radio Event starts. The nACTIVE
-     * signal is sent at the end of the Radio Event. These signals can be used
+     * The ACTIVE signal is sent before the radio event starts. The nACTIVE
+     * signal is sent at the end of the radio event. These signals can be used
      * by the application programmer to synchronize application logic with radio
      * activity. For example, the ACTIVE signal can be used to shut off external
-     * devices to manage peak current drawn during periods when the radio is on,
+     * devices, to manage peak current drawn during periods when the radio is on,
      * or to trigger sensor data collection for transmission in the Radio Event.
      *
      * @param callback
      *          The application handler to be invoked in response to a radio
      *          ACTIVE/INACTIVE event.
      *
-     * or in the other version:
+     * Or in the other version:
      *
      * @param tptr
      *          Pointer to the object of a class defining the member callback
@@ -879,12 +977,10 @@ public:
      */
     void onRadioNotification(void (*callback)(bool param)) {
         radioNotificationCallback.attach(callback);
-        initRadioNotification();
     }
     template <typename T>
     void onRadioNotification(T *tptr, void (T::*mptr)(bool)) {
         radioNotificationCallback.attach(tptr, mptr);
-        initRadioNotification();
     }
 
 protected:
@@ -894,11 +990,11 @@ protected:
         _scanningParams(),
         _scanResponse(),
         state(),
-        timeoutCallback(NULL),
-        connectionCallback(NULL),
-        disconnectionCallback(NULL),
+        scanningActive(false),
+        timeoutCallbackChain(),
         radioNotificationCallback(),
         onAdvertisementReport(),
+        connectionCallChain(),
         disconnectionCallChain() {
         _advPayload.clear();
         _scanResponse.clear();
@@ -914,18 +1010,14 @@ public:
                                 const Address_t           ownAddr,
                                 const ConnectionParams_t *connectionParams) {
         state.connected = 1;
-        if (connectionCallback) {
-            ConnectionCallbackParams_t callbackParams(handle, role, peerAddrType, peerAddr, ownAddrType, ownAddr, connectionParams);
-            connectionCallback(&callbackParams);
-        }
+        ConnectionCallbackParams_t callbackParams(handle, role, peerAddrType, peerAddr, ownAddrType, ownAddr, connectionParams);
+        connectionCallChain.call(&callbackParams);
     }
 
     void processDisconnectionEvent(Handle_t handle, DisconnectionReason_t reason) {
         state.connected = 0;
-        if (disconnectionCallback) {
-            disconnectionCallback(handle, reason);
-        }
-        disconnectionCallChain.call();
+        DisconnectionCallbackParams_t callbackParams(handle, reason);
+        disconnectionCallChain.call(&callbackParams);
     }
 
     void processAdvertisementReport(const Address_t    peerAddr,
@@ -945,8 +1037,8 @@ public:
     }
 
     void processTimeoutEvent(TimeoutSource_t source) {
-        if (timeoutCallback) {
-            timeoutCallback(source);
+        if (timeoutCallbackChain) {
+            timeoutCallbackChain(source);
         }
     }
 
@@ -957,17 +1049,17 @@ protected:
     GapAdvertisingData               _scanResponse;
 
     GapState_t                       state;
+    bool                             scanningActive;
 
 protected:
-    TimeoutEventCallback_t           timeoutCallback;
-    ConnectionEventCallback_t        connectionCallback;
-    DisconnectionEventCallback_t     disconnectionCallback;
-    RadioNotificationEventCallback_t radioNotificationCallback;
-    AdvertisementReportCallback_t    onAdvertisementReport;
-    CallChain                        disconnectionCallChain;
+    TimeoutEventCallbackChain_t       timeoutCallbackChain;
+    RadioNotificationEventCallback_t  radioNotificationCallback;
+    AdvertisementReportCallback_t     onAdvertisementReport;
+    ConnectionEventCallbackChain_t    connectionCallChain;
+    DisconnectionEventCallbackChain_t disconnectionCallChain;
 
 private:
-    /* disallow copy and assignment */
+    /* Disallow copy and assignment. */
     Gap(const Gap &);
     Gap& operator=(const Gap &);
 };

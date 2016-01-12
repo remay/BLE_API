@@ -31,6 +31,52 @@ DiscoveredCharacteristic::read(uint16_t offset) const
     return gattc->read(connHandle, valueHandle, offset);
 }
 
+struct OneShotReadCallback { 
+    static void launch(GattClient* client, Gap::Handle_t connHandle, 
+                       GattAttribute::Handle_t handle, const GattClient::ReadCallback_t& cb) { 
+        OneShotReadCallback* oneShot = new OneShotReadCallback(client, connHandle, handle, cb);
+        oneShot->attach();
+        // delete will be made when this callback is called
+    }
+
+private:
+    OneShotReadCallback(GattClient* client, Gap::Handle_t connHandle, 
+                        GattAttribute::Handle_t handle, const GattClient::ReadCallback_t& cb) : 
+        _client(client),
+        _connHandle(connHandle),
+        _handle(handle), 
+        _callback(cb) { } 
+
+    void attach() { 
+        _client->onDataRead(makeFunctionPointer(this, &OneShotReadCallback::call));
+    }
+
+    void call(const GattReadCallbackParams* params) {
+        // verifiy that it is the right characteristic on the right connection
+        if (params->connHandle == _connHandle && params->handle == _handle) { 
+            _callback(params);
+            _client->onDataRead().detach(makeFunctionPointer(this, &OneShotReadCallback::call));
+            delete this;
+        }
+    }
+
+    GattClient* _client;
+    Gap::Handle_t _connHandle;
+    GattAttribute::Handle_t _handle;
+    GattClient::ReadCallback_t _callback;
+};
+
+ble_error_t DiscoveredCharacteristic::read(uint16_t offset, const GattClient::ReadCallback_t& onRead) const {
+    ble_error_t error = read(offset);
+    if (error) { 
+        return error;
+    }
+
+    OneShotReadCallback::launch(gattc, connHandle, valueHandle, onRead);
+
+    return error;
+}
+
 ble_error_t
 DiscoveredCharacteristic::write(uint16_t length, const uint8_t *value) const
 {
@@ -79,6 +125,52 @@ DiscoveredCharacteristic::requestHVX(HVXType_t type) const
     /* TODO actually discover the handle for the CCCD descriptor */
     uint16_t value = (uint16_t)type;
     return gattc->write(GattClient::GATT_OP_WRITE_REQ, connHandle, valueHandle + 1, sizeof(value), (const uint8_t*)(&value));
+}
+
+struct OneShotWriteCallback { 
+    static void launch(GattClient* client, Gap::Handle_t connHandle, 
+                       GattAttribute::Handle_t handle, const GattClient::WriteCallback_t& cb) { 
+        OneShotWriteCallback* oneShot = new OneShotWriteCallback(client, connHandle, handle, cb);
+        oneShot->attach();
+        // delete will be made when this callback is called
+    }
+
+private:
+    OneShotWriteCallback(GattClient* client, Gap::Handle_t connHandle, 
+                        GattAttribute::Handle_t handle, const GattClient::WriteCallback_t& cb) : 
+        _client(client),
+        _connHandle(connHandle),
+        _handle(handle), 
+        _callback(cb) { } 
+
+    void attach() { 
+        _client->onDataWritten(makeFunctionPointer(this, &OneShotWriteCallback::call));
+    }
+
+    void call(const GattWriteCallbackParams* params) {
+        // verifiy that it is the right characteristic on the right connection
+        if (params->connHandle == _connHandle && params->handle == _handle) { 
+            _callback(params);
+            _client->onDataWritten().detach(makeFunctionPointer(this, &OneShotWriteCallback::call));
+            delete this;
+        }
+    }
+
+    GattClient* _client;
+    Gap::Handle_t _connHandle;
+    GattAttribute::Handle_t _handle;
+    GattClient::WriteCallback_t _callback;
+};
+
+ble_error_t DiscoveredCharacteristic::write(uint16_t length, const uint8_t *value, const GattClient::WriteCallback_t& onRead) const {
+    ble_error_t error = write(length, value);
+    if (error) { 
+        return error;
+    }
+
+    OneShotWriteCallback::launch(gattc, connHandle, valueHandle, onRead);
+
+    return error;
 }
 
 ble_error_t
